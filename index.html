@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+        /* Ensure the map takes up the full viewport height and width */
+        #map {
+            height: 100vh;
+            width: 100%;
+        }
+        /* Style for the control panel */
+        #controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 0 5px rgba(0,0,0,0.5);
+        }
+        /* Style for the places list */
+        #places {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        #places li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px 0;
+        }
+        .select-button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        .select-button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <!-- Control panel for the map -->
+    <div id="controls">
+        <input type="text" id="search" placeholder="Search for places" style="width: 200px;">
+        <button onclick="searchLocation()">Search</button>
+        <ul id="places"></ul>
+        <button onclick="calculateDistance()">Calculate Distance</button>
+    </div>
+    <!-- Container for the map -->
+    <div id="map"></div>
+
+    <!-- Include Leaflet.js library -->
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <!-- Include Leaflet Control Geocoder plugin -->
+    <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+    <script>
+        // Initialize the map and set its view to a default location and zoom level
+        var map = L.map('map').setView([51.505, -0.09], 13);
+
+        // Load and display tile layers on the map
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        // Initialize the geocoder
+        var geocoder = L.Control.Geocoder.nominatim();
+
+        // Arrays to store markers and their coordinates
+        var markers = [];
+        var coordinates = [];
+        var selectedMarkers = [];
+
+        // Function to search for a location
+        function searchLocation() {
+            var search = document.getElementById("search").value;
+            geocoder.geocode(search, function(results) {
+                if (results && results.length > 0) {
+                    var latlng = results[0].center;
+                    map.setView(latlng, 13);
+                    addMarker(latlng, search);
+                } else {
+                    alert("Location not found");
+                }
+            });
+        }
+
+        // Function to add a marker to the map
+        function addMarker(latlng, title) {
+            var marker = L.marker(latlng, { draggable: true }).addTo(map)
+                .bindPopup(title)
+                .openPopup();
+            markers.push({ marker: marker, title: title });
+            coordinates.push(latlng);
+
+            var placeItem = document.createElement("li");
+            placeItem.textContent = `${title}: [${latlng.lat.toFixed(2)}, ${latlng.lng.toFixed(2)}]`;
+
+            var selectButton = document.createElement("button");
+            selectButton.textContent = "Select";
+            selectButton.classList.add("select-button");
+            selectButton.onclick = function () {
+                selectMarker(marker, title);
+            };
+
+            placeItem.appendChild(selectButton);
+            document.getElementById("places").appendChild(placeItem);
+        }
+
+        // Function to select a marker
+        function selectMarker(marker, title) {
+            if (selectedMarkers.length < 2) {
+                marker.setIcon(L.icon({ iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41] }));
+                selectedMarkers.push({ marker: marker, title: title });
+            } else {
+                alert("You can only select two places to calculate the distance.");
+            }
+        }
+
+        // Function to calculate distance between selected markers
+        function calculateDistance() {
+            if (selectedMarkers.length !== 2) {
+                alert("Please select exactly two places to calculate the distance.");
+                return;
+            }
+            var latlng1 = selectedMarkers[0].marker.getLatLng();
+            var latlng2 = selectedMarkers[1].marker.getLatLng();
+            var distance = map.distance(latlng1, latlng2);
+            alert(`Distance between ${selectedMarkers[0].title} and ${selectedMarkers[1].title}: ${(distance / 1000).toFixed(2)} km`);
+            selectedMarkers = [];
+            markers.forEach(markerObj => markerObj.marker.setIcon(L.icon({ iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41] })));
+        }
+    </script>
+</body>
+</html>
